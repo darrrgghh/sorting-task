@@ -1,0 +1,9 @@
+{
+  "name": "vocal-sorting-task",
+  "version": "1.0.0",
+  "description": "Sorting task for extreme metal vocal similarity study",
+  "scripts": {
+    "dev": "npx serve . -p 3000",
+    "preview": "npx serve . -p 3000"
+  }
+}

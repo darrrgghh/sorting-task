@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vocal Similarity Sorting Task</title>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f1115;
+      color: #e8e8ee;
+      padding: 16px;
+    }
+    .wrap { max-width: 1000px; margin: 0 auto; }
+    h2 { font-size: 15px; margin: 0 0 12px; color: #cfd3dc; }
+    p { margin: 0 0 12px; line-height: 1.5; font-size: 14px; }
+    .sortingWrap {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 16px;
+      margin-top: 12px;
+    }
+    @media (max-width: 700px) {
+      .sortingWrap { grid-template-columns: 1fr; }
+    }
+    .panel {
+      border: 1px solid #2a2f3a;
+      border-radius: 12px;
+      padding: 12px;
+      background: #171a21;
+    }
+    .panelTitle {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: #cfd3dc;
+      margin-bottom: 10px;
+    }
+    .pill {
+      font-size: 11px;
+      color: #b7bcc8;
+      background: #202533;
+      padding: 4px 8px;
+      border-radius: 999px;
+    }
+    .stimList, .groupList {
+      min-height: 60px;
+    }
+    .stimItem {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid #2a2f3a;
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+      background: #1e222a;
+      cursor: grab;
+    }
+    .stimItem:active { cursor: grabbing; }
+    .stimItem.dragging { opacity: 0.5; }
+    .stimName { font-size: 13px; flex: 1; }
+    .playBtn {
+      font-size: 11px;
+      border: 1px solid #3a4152;
+      background: #2a2f3a;
+      color: #e8e8ee;
+      border-radius: 6px;
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+    .playBtn:hover { background: #3a4152; }
+    .playBtn.playing { background: #4a5568; }
+    .groupBox {
+      border: 1px dashed #3a4152;
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 10px;
+      min-height: 70px;
+      background: #121520;
+    }
+    .groupBox.dragOver { border-color: #5a6578; background: #1a1f2e; }
+    .groupHeader {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #b7bcc8;
+    }
+    .groupRemove {
+      font-size: 11px;
+      color: #8b95a5;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 2px 6px;
+    }
+    .groupRemove:hover { color: #e8e8ee; }
+    .addGroupBtn {
+      margin-top: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      border: 1px dashed #3a4152;
+      background: transparent;
+      color: #b7bcc8;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .addGroupBtn:hover { border-color: #5a6578; color: #e8e8ee; }
+    .submitBtn {
+      margin-top: 20px;
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      background: #3b82f6;
+      color: white;
+      cursor: pointer;
+    }
+    .submitBtn:hover { background: #2563eb; }
+    .submitBtn:disabled { background: #4a5568; cursor: not-allowed; }
+    .emptyHint { font-size: 12px; color: #6b7280; padding: 8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h2>Sorting Task</h2>
+    <p><strong>Instruction:</strong> Listen to each vocal sound and group them by similarity. Create as many groups as you need. Drag items between groups or back to the list. There are no correct answers.</p>
+
+    <div class="sortingWrap">
+      <div class="panel">
+        <div class="panelTitle">
+          <span>Stimuli</span>
+          <span class="pill" id="stimCount">0 items</span>
+        </div>
+        <div id="stimList" class="stimList"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panelTitle">
+          <span>Your Groups</span>
+          <span class="pill" id="groupCount">0 groups</span>
+        </div>
+        <div id="groupList"></div>
+        <button type="button" class="addGroupBtn" id="addGroupBtn">+ Add group</button>
+      </div>
+    </div>
+
+    <button type="button" class="submitBtn" id="submitBtn">Done — continue to survey</button>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    (function() {
+      const AUDIO_BASE = (typeof window.AUDIO_BASE_URL !== 'undefined') ? window.AUDIO_BASE_URL : '/audio';
+      let groupCounter = 0;
+      const groups = [];
+
+      function getAudioUrl(id) {
+        const base = AUDIO_BASE.replace(/\/$/, '');
+        return base + '/' + id + '.wav';
+      }
+
+      // Random mapping: display "Stimulus 01".."27" in order, but each maps to a random SMPC-xx
+      // Cached in sessionStorage: same order on refresh, new order when tab/browser closed
+      const CACHE_KEY = 'smpc_sorting_mapping';
+      let displayToId = [];
+
+      function buildRandomMapping() {
+        const ids = (window.STIMULI || []).map(s => s.id);
+        const shuffled = [...ids];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        displayToId = shuffled;
+      }
+
+      function getOrCreateMapping() {
+        try {
+          const cached = sessionStorage.getItem(CACHE_KEY);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length === (window.STIMULI || []).length) {
+              displayToId = parsed;
+              return;
+            }
+          }
+        } catch (e) {}
+        buildRandomMapping();
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify(displayToId));
+      }
+
+      function renderStimuli() {
+        getOrCreateMapping();
+        const list = document.getElementById('stimList');
+        list.innerHTML = '';
+        displayToId.forEach((actualId, i) => {
+          const displayName = 'Stimulus ' + String(i + 1).padStart(2, '0');
+          const div = document.createElement('div');
+          div.className = 'stimItem';
+          div.draggable = true;
+          div.dataset.id = actualId;
+          div.innerHTML = '<span class="stimName">' + displayName + '</span><button type="button" class="playBtn" data-id="' + actualId + '">Play</button>';
+          list.appendChild(div);
+        });
+        document.getElementById('stimCount').textContent = displayToId.length + ' items';
+
+        list.querySelectorAll('.playBtn').forEach(btn => {
+          btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const id = this.dataset.id;
+            const url = getAudioUrl(id);
+            const audio = new Audio(url);
+            audio.play().catch(() => {});
+            this.classList.add('playing');
+            audio.onended = () => this.classList.remove('playing');
+          });
+        });
+
+        new Sortable(list, {
+          group: 'shared',
+          animation: 150,
+          ghostClass: 'dragging',
+        });
+      }
+
+      function addGroup() {
+        groupCounter++;
+        const g = {
+          id: 'g' + groupCounter,
+          name: 'Group ' + groupCounter,
+          el: null,
+        };
+        const box = document.createElement('div');
+        box.className = 'groupBox';
+        box.dataset.groupId = g.id;
+        box.innerHTML = '<div class="groupHeader"><span>' + g.name + '</span><button type="button" class="groupRemove" data-id="' + g.id + '">Remove</button></div><div class="groupItems"></div>';
+        g.el = box;
+        groups.push(g);
+
+        document.getElementById('groupList').appendChild(box);
+        document.getElementById('groupCount').textContent = groups.length + ' groups';
+
+        new Sortable(box.querySelector('.groupItems'), {
+          group: 'shared',
+          animation: 150,
+          ghostClass: 'dragging',
+          emptyPlaceholder: '<div class="emptyHint">Drop here</div>',
+        });
+
+        box.querySelector('.groupRemove').addEventListener('click', () => removeGroup(g.id));
+      }
+
+      function removeGroup(id) {
+        const idx = groups.findIndex(g => g.id === id);
+        if (idx === -1) return;
+        const g = groups[idx];
+        g.el.remove();
+        groups.splice(idx, 1);
+        document.getElementById('groupCount').textContent = groups.length + ' groups';
+      }
+
+      document.getElementById('addGroupBtn').addEventListener('click', () => addGroup());
+
+      function collectResults() {
+        const result = [];
+        groups.forEach(g => {
+          const items = g.el.querySelectorAll('.stimItem');
+          const ids = Array.from(items).map(el => el.dataset.id).filter(Boolean);
+          if (ids.length > 0) result.push(ids);
+        });
+        const unassigned = document.querySelectorAll('#stimList .stimItem');
+        const unassignedIds = Array.from(unassigned).map(el => el.dataset.id).filter(Boolean);
+        if (unassignedIds.length > 0) result.push(unassignedIds);
+        return result;
+      }
+
+      function sendToQualtrics() {
+        const groups = collectResults();
+        const compact = groups.map(g => g.join(',')).join('|');
+        const mapping = displayToId.map((id, i) => (i + 1) + ':' + id).join(',');
+        const payload = {
+          type: 'SMPC_SORTING_COMPLETE',
+          data: {
+            groups: groups,
+            compact: compact,
+            groupCount: groups.length,
+            mapping: mapping,
+          },
+        };
+        if (window.parent !== window) {
+          window.parent.postMessage(payload, '*');
+        }
+        return payload;
+      }
+
+      document.getElementById('submitBtn').addEventListener('click', function() {
+        this.disabled = true;
+        this.textContent = 'Submitting...';
+        const payload = sendToQualtrics();
+        console.log('Sorting result:', payload);
+        this.textContent = 'Submitted. You can close this or continue.';
+      });
+
+      addGroup();
+      addGroup();
+      renderStimuli();
+    })();
+  </script>
+</body>
+</html>

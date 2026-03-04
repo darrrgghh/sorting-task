@@ -1,0 +1,5 @@
+node_modules/
+__pycache__/
+*.pyc
+# Root-level WAV duplicates (audio is in audio/)
+/SMPC-*.wav
