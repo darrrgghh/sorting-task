@@ -10,16 +10,18 @@
 4. Вставьте код:
 
 ```html
-<div id="sorting-container" style="min-height: 500px;">
+<div id="sorting-container" style="min-height: 750px;">
   <iframe
     id="sorting-iframe"
     src="https://ВАШ-ПРОЕКТ.vercel.app/"
-    style="width: 100%; height: 520px; border: none; border-radius: 8px;"
+    style="width: 100%; height: 750px; border: none; border-radius: 8px;"
     title="Sorting Task"
   ></iframe>
 </div>
 <p id="sorting-status" style="color: #666; font-size: 13px;">Complete the sorting task above, then click "Done" to continue.</p>
 ```
+
+Чтобы увеличить область: измените `height` (например, 800px или 80vh для ~80% высоты экрана).
 
 Замените `https://ВАШ-ПРОЕКТ.vercel.app/` на ваш реальный URL с Vercel.
 
