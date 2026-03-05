@@ -138,7 +138,7 @@
     <div class="sortingWrap">
       <div class="panel">
         <div class="panelTitle">
-          <span>Stimuli</span>
+          <span>Vocals</span>
           <span class="pill" id="stimCount">0 items</span>
         </div>
         <div id="stimList" class="stimList"></div>
@@ -169,7 +169,7 @@
         return base + '/' + id + '.wav';
       }
 
-      // Random mapping: display "Stimulus 01".."27" in order, but each maps to a random SMPC-xx
+      // Random mapping: display "Vocal 01".."27" in order, but each maps to a random SMPC-xx
       // Cached in sessionStorage: same order on refresh, new order when tab/browser closed
       const CACHE_KEY = 'smpc_sorting_mapping';
       let displayToId = [];
@@ -204,7 +204,7 @@
         const list = document.getElementById('stimList');
         list.innerHTML = '';
         displayToId.forEach((actualId, i) => {
-          const displayName = 'Stimulus ' + String(i + 1).padStart(2, '0');
+          const displayName = 'Vocal ' + String(i + 1).padStart(2, '0');
           const div = document.createElement('div');
           div.className = 'stimItem';
           div.draggable = true;
