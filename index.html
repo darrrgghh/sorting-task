@@ -127,6 +127,12 @@
     }
     .submitBtn:hover { background: #2563eb; }
     .submitBtn:disabled { background: #4a5568; cursor: not-allowed; }
+    .submitHint {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #f59e0b;
+      min-height: 1.25em;
+    }
     .emptyHint { font-size: 12px; color: #6b7280; padding: 8px; }
   </style>
 </head>
@@ -154,7 +160,8 @@
       </div>
     </div>
 
-    <button type="button" class="submitBtn" id="submitBtn">Done</button>
+    <button type="button" class="submitBtn" id="submitBtn" disabled>Done</button>
+    <div class="submitHint" id="submitHint" aria-live="polite"></div>
   </div>
 
   <script src="config.js"></script>
@@ -163,6 +170,24 @@
       const AUDIO_BASE = (typeof window.AUDIO_BASE_URL !== 'undefined') ? window.AUDIO_BASE_URL : '/audio';
       let groupCounter = 0;
       const groups = [];
+      const submitBtn = document.getElementById('submitBtn');
+      const submitHint = document.getElementById('submitHint');
+
+      function countStimInGroups() {
+        return document.querySelectorAll('#groupList .groupItems .stimItem').length;
+      }
+
+      function isComplete() {
+        if (!displayToId.length) return false;
+        const left = document.querySelectorAll('#stimList .stimItem').length;
+        if (left !== 0) return false;
+        return countStimInGroups() === displayToId.length;
+      }
+
+      function updateSubmitEnabled() {
+        if (submitBtn.textContent === 'Submitting...' || submitBtn.textContent.indexOf('Submitted') === 0) return;
+        submitBtn.disabled = !isComplete();
+      }
 
       function getAudioUrl(id) {
         const base = AUDIO_BASE.replace(/\/$/, '');
@@ -230,7 +255,9 @@
           group: 'shared',
           animation: 150,
           ghostClass: 'dragging',
+          onEnd: updateSubmitEnabled,
         });
+        updateSubmitEnabled();
       }
 
       function addGroup() {
@@ -255,9 +282,11 @@
           animation: 150,
           ghostClass: 'dragging',
           emptyPlaceholder: '<div class="emptyHint">Drop here</div>',
+          onEnd: updateSubmitEnabled,
         });
 
         box.querySelector('.groupRemove').addEventListener('click', () => removeGroup(g.id));
+        updateSubmitEnabled();
       }
 
       function removeGroup(id) {
@@ -267,6 +296,7 @@
         g.el.remove();
         groups.splice(idx, 1);
         document.getElementById('groupCount').textContent = groups.length + ' groups';
+        updateSubmitEnabled();
       }
 
       document.getElementById('addGroupBtn').addEventListener('click', () => addGroup());
@@ -278,9 +308,6 @@
           const ids = Array.from(items).map(el => el.dataset.id).filter(Boolean);
           if (ids.length > 0) result.push(ids);
         });
-        const unassigned = document.querySelectorAll('#stimList .stimItem');
-        const unassignedIds = Array.from(unassigned).map(el => el.dataset.id).filter(Boolean);
-        if (unassignedIds.length > 0) result.push(unassignedIds);
         return result;
       }
 
@@ -303,7 +330,12 @@
         return payload;
       }
 
-      document.getElementById('submitBtn').addEventListener('click', function() {
+      submitBtn.addEventListener('click', function() {
+        if (!isComplete()) {
+          submitHint.textContent = 'Move all vocals into groups before finishing.';
+          return;
+        }
+        submitHint.textContent = '';
         this.disabled = true;
         this.textContent = 'Submitting...';
         const payload = sendToQualtrics();
